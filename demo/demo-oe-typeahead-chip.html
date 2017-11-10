@@ -1,0 +1,109 @@
+<!-- 
+  ©2016-2017 EdgeVerve Systems Limited (a fully owned Infosys subsidiary),
+  Bangalore, India. All Rights Reserved.
+-->
+<!doctype html>
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+  <meta name="viewport" content="width=device-width, minimum-scale=1.0, initial-scale=1, user-scalable=yes">
+
+  <title>oe-typeahead-chip demo</title>
+
+  <script src="../../webcomponentsjs/webcomponents-lite.js"></script>
+
+  <link rel="import" href="../../iron-demo-helpers/demo-pages-shared-styles.html">
+  <link rel="import" href="../../iron-demo-helpers/demo-snippet.html">
+  <link rel="import" href="../../paper-styles/paper-styles.html">
+  <link rel="import" href="custom-styles.html">
+
+  <link rel="import" href="../oe-typeahead-chip.html">
+
+</head>
+
+<body unresolved>
+
+  <div class="vertical-section-container centered">
+    <h3>Search</h3>
+    <h4>
+      <i>Info: Type 'i' or 'u' letter for countries</i>
+    </h4>
+    <demo-snippet>
+      <template>
+        <template is="dom-bind">
+          <oe-typeahead-chip label="Search Countries" displayproperty="description" valueproperty="code" searchurl="../data/country/SEARCH_STRING.json"
+            value="{{value}}">
+          </oe-typeahead-chip>
+        </template>
+      </template>
+    </demo-snippet>
+
+    <h3>Setting value without dataurl</h3>
+    <h4>
+      <i>Scenario: If there is no valueproperty set, value contains array of object. So value will be stored as array of objects</i>
+    </h4>
+    <demo-snippet>
+      <template>
+        <template is="dom-bind">
+          <oe-typeahead-chip id="country" label="Search Countries" displayproperty="description" searchurl="../data/country/SEARCH_STRING.json"
+            value={{value}}></oe-typeahead-chip>
+          <script>
+            var el = document.querySelector('#country');
+            el.set('value', [{ "id": 1, "code": "IN", "description": "India" }, { "id": 2, "code": "IR", "description": "Ireland" }]);
+          </script>
+        </template>
+      </template>
+    </demo-snippet>
+
+    <h3>Setting value with dataurl</h3>
+    <h4>
+      <i>Info: To set actual api to dataurl property use like - dataurl='api/countries?filter={"where": {"code": {"inq": VALUE_STRING}}}'</i>&nbsp;&nbsp;
+      Example VALUE_STRING would look like ["IN", "IR", "ID"]</h4>
+    <demo-snippet>
+      <template>
+        <template is="dom-bind">
+          <oe-typeahead-chip id="fetch" label="Search Countries" displayproperty="description" searchurl="../data/country/SEARCH_STRING.json"
+            value={{value}}></oe-typeahead-chip>
+          <script>
+            var el = document.querySelector('#fetch');
+            el.set('value', ["IN", "IR", "ID"]);
+            el.set('dataurl', "../data/country/i.json"); // setting for demo convinence
+          </script>
+        </template>
+      </template>
+    </demo-snippet>
+
+    <h3>Required</h3>
+    <demo-snippet>
+      <template>
+        <template is="dom-bind">
+          <oe-typeahead-chip label="Search Countries" required displayproperty="description" searchurl="../data/country/SEARCH_STRING.json"
+            value={{value}}></oe-typeahead-chip>
+        </template>
+      </template>
+    </demo-snippet>
+
+    <h3>Store value as array of objects</h3>
+    <h4>
+      <i>Info: There might be a scenario where the value should be stored as array of objects. So, to acheive this don't provide
+        valueproperty
+      </i>
+    </h4>
+    <demo-snippet>
+      <template>
+        <template is="dom-bind">
+          <oe-typeahead-chip label="Search Countries" required displayproperty="description" searchurl="../data/country/SEARCH_STRING.json"
+            value={{value}}></oe-typeahead-chip>
+          <template is="dom-repeat" items=[[value]]>
+            ({{item.code}} - {{item.description}})
+          </template>
+        </template>
+      </template>
+    </demo-snippet>
+
+  </div>
+</body>
+
+</html>

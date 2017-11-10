@@ -1,0 +1,474 @@
+<!-- 
+  ©2016-2017 EdgeVerve Systems Limited (a fully owned Infosys subsidiary),
+  Bangalore, India. All Rights Reserved.
+-->
+<link rel="import" href="../polymer/polymer.html">
+<link rel="import" href="../paper-menu/paper-menu.html">
+<link rel="import" href="../paper-item/paper-item.html">
+<link rel="import" href="../paper-input/paper-input-behavior.html">
+<link rel="import" href="../paper-input/paper-input-container.html">
+<link rel="import" href="../iron-dropdown/iron-dropdown.html">
+<link rel="import" href="../paper-material/paper-material.html">
+<link rel="import" href="../oe-input/oe-input.html">
+<link rel="import" href="../oe-ajax/oe-ajax.html">
+<link rel="import" href="../oe-field-behavior/oe-field-behavior.html">
+<link rel="import" href="../oe-i18n-msg/oe-i18n-msg.html">
+<link rel="import" href="../paper-chip/paper-chip.html">
+<link rel="import" href="../iron-behaviors/iron-control-state.html">
+<link rel="import" href="../iron-flex-layout/iron-flex-layout.html">
+<link rel="import" href="../oe-input-error/oe-input-error.html">
+<link rel="import" href="../iron-input/iron-input.html">
+
+<!--
+
+@demo demo/demo-oe-typeahead-chip.html
+-->
+<dom-module id="oe-typeahead-chip">
+  <style>
+    :host {
+      display: block;
+    }
+
+    paper-menu {
+      max-height: 240px;
+      overflow: auto;
+    }
+
+    paper-item {
+      cursor: pointer;
+    }
+
+    .iron-selected {
+      background: var(--typeahead-selected-backgroud, #e0e0e0);
+    }
+
+    .tags-input>paper-chip {
+      z-index: 1;
+      margin: 0;
+    }
+
+    span.required {
+      vertical-align: bottom;
+      color: var(--paper-input-container-invalid-color, --paper-deep-orange-a700);
+    }
+
+    .dropdown-content> ::content paper-item {
+      --paper-item-selected: {
+        background-color: #ccc;
+      }
+    }
+  </style>
+  <template>
+    <oe-ajax id="iajax" auto url=[[_getRequestUrl(searchString)]] last-response={{_suggestions}} on-response="_onSearchSuccess"
+      on-error="_onSearchError" debounce-duration={{debounceDuration}} handle-as="json" content-type="application/json"></oe-ajax>
+    <div style="position:relative;">
+      <paper-input-container no-label-float="[[noLabelFloat]]" always-float-label="[[_computeAlwaysFloatLabel(alwaysFloatLabel,placeholder)]]"
+        auto-validate$="[[autoValidate]]" disabled$="[[disabled]]" invalid="[[invalid]]">
+        <content select="[prefix]"></content>
+        <label hidden$="[[!label]]">
+          <oe-i18n-msg msgid=[[label]]>[[label]]</oe-i18n-msg>
+          <template is="dom-if" if={{required}}>
+            <span class="required"> *</span>
+          </template>
+        </label>
+        <div class="tags-input layout horizontal wrap">
+          <template is="dom-repeat" items={{chips}}>
+            <paper-chip tabindex="-1" removable single-line on-remove="_onRemoveChip">
+              <span class="label">{{item}}</span>
+            </paper-chip>
+          </template>
+          <input is="iron-input" id="input" aria-labelledby$="[[_ariaLabelledBy]]" aria-describedby$="[[_ariaDescribedBy]]" disabled$="[[disabled]]"
+            bind-value="{{displayValue}}" invalid="{{invalid}}" prevent-invalid-input="[[preventInvalidInput]]" allowed-pattern="[[allowedPattern]]"
+            validator="[[validator]]" type$="[[type]]" pattern$="[[pattern]]" required$="[[required]]" autocomplete$="[[autocomplete]]"
+            autofocus$="[[autofocus]]" inputmode$="[[inputmode]]" minlength$="[[minlength]]" maxlength$="[[maxlength]]" min$="[[min]]"
+            max$="[[max]]" step$="[[step]]" name$="[[name]]" placeholder$="[[placeholder]]" readonly$="[[readonly]]" list$="[[list]]"
+            size$="[[size]]" autocapitalize$="[[autocapitalize]]" autocorrect$="[[autocorrect]]" tabindex$="[[tabindex]]" autosave$="[[autosave]]"
+            results$="[[results]]" class="flex" accept$="[[accept]]" multiple$="[[multiple]]">
+          <content select="[suffix]"></content>
+        </div>
+        <oe-input-error invalid={{invalid}} placeholders={{errorPlaceholders}} error-message={{errorMessage}}></oe-input-error>
+        <template is="dom-if" if="[[charCounter]]">
+          <paper-input-char-counter></paper-input-char-counter>
+        </template>
+      </paper-input-container>
+      <div>
+        <iron-dropdown id="dropdown" no-auto-focus opened="{{_suggestions.length}}">
+          <paper-material class="dropdown-content">
+            <paper-menu id="menu">
+              <template is="dom-repeat" items="{{_suggestions}}" sort="sortData">
+                <paper-item on-mouseover="_onMouseOver" on-tap="_onPaperItemTap" data-item={{item}} data-index={{index}}>
+                  <span>{{getDisplayValue(item)}}</span>
+                </paper-item>
+              </template>
+            </paper-menu>
+          </paper-material>
+        </iron-dropdown>
+      </div>
+    </div>
+  </template>
+  <script>
+    Polymer({
+
+      is: 'oe-typeahead-chip',
+
+      properties: {
+
+        errorMessage: {
+          type: String,
+          notify: true
+        },
+
+        displayValue: {
+          type: String
+        },
+
+        displayproperty: {
+          type: String
+        },
+
+        valueproperty: {
+          type: String
+        },
+
+        chips: {
+          type: Array
+        },
+
+        value: {
+          type: Array,
+          notify: true,
+          observer: '_fetchModel'
+        },
+
+        _suggestions: {
+          type: Array,
+          observer: '_suggestionsChanged'
+        },
+
+        selectedItem: {
+          type: Object,
+          notify: true
+        },
+
+        debounceDuration: {
+          type: Number,
+          value: 300
+        },
+
+        searchString: {
+          type: String,
+          notify: true
+        },
+
+        searchurl: {
+          type: String
+        },
+
+        dataurl: {
+          type: String,
+          observer: '_fetchModel'
+        },
+
+        disabled: {
+          type: Boolean,
+          notify: true
+        },
+
+        required: {
+          type: Boolean,
+          notify: true
+        }
+
+      },
+
+      listeners: {
+        'input.focus': '_onFocus',
+        'input.keyup': '_onKeyUp',
+        'input.keydown': '_onKeyDown',
+        'input.input': '_onInput',
+        'input.blur': '_onBlur',
+        'input.change': '_onChange',
+        'selected-item': 'validate'
+      },
+
+      observers: ['_onChipChanged(chips.splices)'],
+
+      behaviors: [
+        Polymer.PaperInputBehavior,
+        OEUtils.FieldBehavior
+      ],
+
+      /**
+      * Returns a reference to the input element.
+      */
+      get inputElement() {
+        return this.$.input;
+      },
+
+      get menuElement() {
+        return this.$.menu;
+      },
+
+      _onFocus: function (e) { // eslint-disable-line no-unused-vars
+        this.inputElement.select();
+      },
+
+      _onChipChanged: function (newVal, oldVal) {
+        // when chip length is more than zero floating label should be true.
+        // instead of checking the bind-value length, because in this case bind-value for every time after adding chip will be empty
+        // if bind-value is empty the floating label will be false which is wrong
+        if (newVal && newVal.indexSplices && newVal.indexSplices[0].object.length > 0) {
+          this.set('alwaysFloatLabel', true);
+        } else {
+          this.set('alwaysFloatLabel', false);
+        }
+        this._validate();
+      },
+
+      _onInput: function (e) { // eslint-disable-line no-unused-vars
+        var term = this.displayValue.trim();
+
+        if (term == '') {
+          this.set('_suggestions', []);
+          this.setSelectedItem(undefined);
+          return;
+        }
+
+        if (!this._suggestions) {
+          this.set('_suggestions', []);
+        }
+
+        if (this.searchurl) {
+          if (term == this.searchString) {
+            this.$.iajax.generateRequest();
+          } else {
+            this.set('searchString', term);
+          }
+        } else {
+          this.set('value', term);
+        }
+      },
+
+      _onBlur: function (e) { // eslint-disable-line no-unused-vars
+        if (!this._suggestions) {
+          this.validate();
+        }
+      },
+
+      _onMouseOver: function (e) {
+        var suggestionsMenu = this.menuElement;
+        if (suggestionsMenu && typeof (suggestionsMenu) != 'undefined') {
+          suggestionsMenu.select(e.currentTarget.dataIndex);
+          this.inputElement.focus();
+        }
+      },
+
+      _onKeyDown: function (e) {
+        var keycode = e.keyCode || e.which || e.key;
+        if (keycode == 40 || keycode == 38) {
+          e.preventDefault();
+          e.stopPropagation();
+        } else if (e.keyCode == 13 && this._suggestions.length) {
+          e.stopPropagation();
+        } else if (keycode == 8) {
+          //back
+          if (e.target.value === '') {
+            // the string is empty , so remove a chip if present
+            if (this.value && this.value.length > 0) {
+              this.splice('chips', this.chips.length - 1, 1);
+              this.splice('value', this.value.length - 1, 1);
+              if (this.value.length == 0 && this.chips.length == 0) { // both would be zero
+                this.value = undefined;
+                this.chips = undefined;
+              }
+              this._validate();
+            }
+          }
+        }
+      },
+
+      _onKeyUp: function (e) {
+        var keycode = e.keyCode || e.which || e.key;
+        var suggestionsMenu = this.menuElement;
+
+        if (keycode == 40) {
+          //down button
+          if (suggestionsMenu) {
+            var selectedItem = suggestionsMenu.focusedItem;
+            var index = 0;
+            if (typeof (selectedItem) != 'undefined') {
+              index = Number(suggestionsMenu.indexOf(selectedItem));
+              index = Math.min(index + 1, this._suggestions.length - 1);
+            }
+            suggestionsMenu.select(index);
+          }
+          this.inputElement.focus();
+        } else if (keycode == 38) {
+          //up
+          if (suggestionsMenu) {
+            var selectedItem = suggestionsMenu.focusedItem; // eslint-disable-line no-redeclare
+            if (typeof (selectedItem) != 'undefined') {
+              index = Number(suggestionsMenu.indexOf(selectedItem));
+              index = Math.max(index - 1, -1);
+              suggestionsMenu.select(index);
+            }
+          }
+          this.inputElement.focus();
+        } else if (keycode == 13) {
+          //enter
+          if (suggestionsMenu && typeof (suggestionsMenu) != 'undefined') {
+            var selectedItem = suggestionsMenu.selectedItem || suggestionsMenu.focusedItem; // eslint-disable-line no-redeclare
+            if (typeof (selectedItem) != 'undefined') {
+              this.setSelectedItem(selectedItem.dataItem);
+            }
+          }
+        } 
+      },
+
+      _onChange: function (e) {
+        e.stopPropagation();
+      },
+
+      _onPaperItemTap: function (e) {
+        this.setSelectedItem(e.currentTarget.dataItem);
+        e.stopPropagation();
+      },
+
+      setSelectedItem: function (item) {
+        if (item == undefined) return;
+
+        this.fire('item-selected', item);
+        this.chips = this.chips || [];
+        this.value = this.value || [];
+
+        this.selectedItem = item;
+        this.displayValue = this.getDisplayValue(item);
+        this.push('chips', this.displayValue);
+        if (this.valueproperty) {
+          this.push('value', item ? item[this.valueproperty] : undefined);
+        } else {
+          this.push('value', item);
+        }
+
+        this.set('_suggestions', []);
+        this.displayValue = '';
+        this._validate();
+
+      },
+
+      _onRemoveChip: function (e) {
+        this.splice('chips', e.model.index, 1);
+        this.splice('value', e.model.index, 1);
+        if (this.value.length == 0) {
+          this.displayValue = '';
+          this.value = undefined;
+        }
+        this._validate();
+      },
+
+      _validate: function () {
+        var isValid = true;
+        if (this.required && !this.value) {
+          this.setValidity(false, 'valueMissing');
+          isValid = false;
+        } else if (this.required && this.value) {
+          this.setValidity(true);
+        }
+        return isValid;
+      },
+
+      getDisplayValue: function (item) {
+        var ret = item;
+        if (ret && this.displayproperty) {
+          ret = ret[this.displayproperty];
+        }
+        return ret ? ret.toString() : '';
+      },
+
+      _getRequestUrl: function (searchString) {
+        var re = new RegExp('SEARCH_STRING', 'g');
+        var ret = undefined;
+        if (this.searchurl) {
+          ret = this.searchurl.replace(re, encodeURI(searchString));
+        }
+        return ret;
+      },
+
+      _suggestionsChanged: function (suggestions) { // eslint-disable-line no-unused-vars
+        if (this._suggestions && this._suggestions.length > 0) {
+          this.$.menu.selected = 0; // always select the first item as focused|selected
+          this.$.dropdown.style.width = this.offsetWidth + 'px';
+        }
+      },
+
+      /*
+       * Sorts data based on displayproperty
+       * Kept method as public so that user can overwrite it if needed
+       */
+      sortData: function (a, b) {
+        return this.getDisplayValue(a) > this.getDisplayValue(b) ? 1 : -1;
+      },
+
+      _fetchModel: function (nVal, oVal) { // eslint-disable-line no-unused-vars
+        //Common Observer for dataurl as well as value property.
+        //Do not rely on nVal or oVal to be value or dataurl.
+
+        if (!this.value || this.value.length === 0) {
+          //console.log('newvalue is null');
+          this.setSelectedItem(undefined);
+          return;
+        }
+
+        if (this.selectedItem && (this.selectedItem === this.value || this.value == this.selectedItem[
+          this.valueproperty])) {
+          //console.log('input object is same as newvalue');
+          // new value is same as what is already set
+          return;
+        }
+
+        var self = this;
+        self.chips = self.chips || [];
+        // checking only [0] index value for the type, expecting remaining will be same type.
+        // so if it is object(whole instance) so we are simply setting the chip data
+        if (this.value && this.value.length > 0 && typeof this.value[0] == 'object') {
+          this.value.forEach(function (item) {
+            if (typeof item == 'object') {
+              self.push('chips', self.getDisplayValue(item));
+            }
+          });
+        } else if (this.dataurl && this.value && this.value.length > 0 && typeof this.value[0] == 'string') {
+          var metaAjax = document.createElement('oe-ajax');
+          metaAjax.contentType = 'application/json';
+          metaAjax.handleAs = 'json';
+
+          var re = new RegExp('VALUE_STRING', 'g');
+          metaAjax.url = self.dataurl.replace(re, JSON.stringify(self.value));
+          metaAjax.addEventListener('response', function (event) {
+            var resp = event.detail.response;
+            if (Array.isArray(resp)) {
+              resp.forEach(function (item) {
+                self.push('chips', self.getDisplayValue(item));
+              });
+            }
+          });
+          metaAjax.addEventListener('error', function (event) { // eslint-disable-line no-unused-vars
+            self.setSelectedItem(undefined);
+          });
+          metaAjax.generateRequest();
+        } else {
+          console.log('typeahead-chip fetch skipped. url/value is still empty'); // eslint-disable-line no-console
+        }
+      },
+      
+      _onSearchSuccess: function(event) {
+        // records found
+      },
+
+      _onSearchError: function(event) {
+        // something went wrong while search for records
+      }
+
+    });
+
+  </script>
+</dom-module>
