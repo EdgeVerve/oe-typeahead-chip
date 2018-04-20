@@ -358,6 +358,7 @@
         } else {
           this.push('value', item);
         }
+        this.fire('pt-item-confirmed', item);
 
         this.set('_suggestions', []);
         this.displayValue = '';
