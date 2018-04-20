@@ -29,11 +29,6 @@
       display: block;
     }
 
-    paper-menu {
-      max-height: 240px;
-      overflow: auto;
-    }
-
     paper-item {
       cursor: pointer;
     }
@@ -56,6 +51,9 @@
       --paper-item-selected: {
         background-color: #ccc;
       }
+    }
+    .dropdown-content > ::content{
+      max-height: 240px;
     }
   </style>
   <template>
