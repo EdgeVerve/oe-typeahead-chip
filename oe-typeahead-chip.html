@@ -29,11 +29,6 @@
       display: block;
     }
 
-    paper-menu {
-      max-height: 240px;
-      overflow: auto;
-    }
-
     paper-item {
       cursor: pointer;
     }
@@ -57,9 +52,12 @@
         background-color: #ccc;
       }
     }
+    .dropdown-content > ::content{
+      max-height: 240px;
+    }
   </style>
   <template>
-    <oe-ajax id="iajax" auto url=[[_getRequestUrl(searchString)]] last-response={{_suggestions}} on-response="_onSearchSuccess"
+    <oe-ajax id="iajax" auto url=[[_getRequestUrl(searchString)]] on-response="_onSearchSuccess"
       on-error="_onSearchError" debounce-duration={{debounceDuration}} handle-as="json" content-type="application/json"></oe-ajax>
     <div style="position:relative;">
       <paper-input-container no-label-float="[[noLabelFloat]]" always-float-label="[[_computeAlwaysFloatLabel(alwaysFloatLabel,placeholder)]]"
@@ -143,6 +141,11 @@
         _suggestions: {
           type: Array,
           observer: '_suggestionsChanged'
+        },
+        /* Select unique values only when values are of type String or Number*/
+        unique:{
+          type:Boolean,
+          value:false
         },
 
         selectedItem: {
@@ -316,6 +319,10 @@
           this.inputElement.focus();
         } else if (keycode == 13) {
           //enter
+          if(this._suggestions.length === 0){
+            //When enter key is pressed without any suggestions
+            return;
+          }
           if (suggestionsMenu && typeof (suggestionsMenu) != 'undefined') {
             var selectedItem = suggestionsMenu.selectedItem || suggestionsMenu.focusedItem; // eslint-disable-line no-redeclare
             if (typeof (selectedItem) != 'undefined') {
@@ -349,6 +356,7 @@
         } else {
           this.push('value', item);
         }
+        this.fire('pt-item-confirmed', item);
 
         this.set('_suggestions', []);
         this.displayValue = '';
@@ -461,7 +469,20 @@
       },
       
       _onSearchSuccess: function(event) {
-        // records found
+        var list = event.target.lastResponse;
+        if(Array.isArray(list)){
+          if(this.unique && Array.isArray(this.value)){
+            var value = this.value;
+            var valueproperty = this.valueproperty;
+            var filtered =  list.filter(function(item){
+              var suggestionVal = valueproperty ? item[valueproperty] : item;
+              return suggestionVal && (value.indexOf(suggestionVal) === -1);
+            });
+            this.set('_suggestions',filtered);
+          }else{
+            this.set('_suggestions',list);
+          }
+        }
       },
 
       _onSearchError: function(event) {

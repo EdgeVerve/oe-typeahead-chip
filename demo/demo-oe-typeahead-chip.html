@@ -26,14 +26,14 @@
 <body unresolved>
 
   <div class="vertical-section-container centered">
-    <h3>Search</h3>
+    <h3>Search with unique</h3>
     <h4>
       <i>Info: Type 'i' or 'u' letter for countries</i>
     </h4>
     <demo-snippet>
       <template>
         <template is="dom-bind">
-          <oe-typeahead-chip label="Search Countries" displayproperty="description" valueproperty="code" searchurl="../data/country/SEARCH_STRING.json"
+          <oe-typeahead-chip label="Search Countries" unique displayproperty="description" valueproperty="code" searchurl="../data/country/SEARCH_STRING.json"
             value="{{value}}">
           </oe-typeahead-chip>
         </template>
